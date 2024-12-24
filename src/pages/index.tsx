@@ -1,118 +1,175 @@
-import Image from 'next/image'
-import { Inter } from 'next/font/google'
+import React, { useState, useEffect } from 'react';
+import { Input, Button, Select, Row, Col, Space, Spin, Empty } from 'antd';
+import useProducts, { IProduct } from '@/hooks/useProducts';
+import ProductCard from '@/ui/product-card';
+import Loader from '@/ui/loader';
+import useProductCategories, { ICategory } from '@/hooks/useProductCategories';
 
-const inter = Inter({ subsets: ['latin'] })
+const { Option } = Select;
 
-export default function Home() {
+const ProductList: React.FC = () => {
+  const [limit, setLimit] = useState(15);
+  const [skip, setSkip] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [minRating, setMinRating] = useState(0);
+  const [cart, setCart] = useState<number[]>([]);
+  const [products, setProducts] = useState<IProduct[]>([]);
+
+  const { data, isLoading, isError, isFetching } = useProducts(limit, selectedCategory, skip);
+  const { data: categories, isLoading: isLoadingCategories } = useProductCategories();
+
+  useEffect(() => {
+    const savedCart = JSON.parse(localStorage.getItem('cart') || '[]');
+    setCart(savedCart);
+  }, []);
+
+  useEffect(() => {
+    if (data?.products) {
+      setProducts((prevProducts) => {
+        const productIds = prevProducts.map((product) => product.id);
+        const newProducts = data.products.filter(
+          (product) => !productIds.includes(product.id)
+        );
+        return [...prevProducts, ...newProducts];
+      });
+    }
+  }, [data]);
+
+  const handleLoadMore = () => {
+    if (data && products.length < data.total) {
+      setSkip((prevSkip) => prevSkip + limit);
+    }
+  };
+
+  const handleAddToCart = (productId: number) => {
+    if (!cart.includes(productId)) {
+      const newCart = [...cart, productId];
+      setCart(newCart);
+      localStorage.setItem('cart', JSON.stringify(newCart));
+    }
+  };
+
+  const handleRemoveFromCart = (productId: number) => {
+    const newCart = cart.filter((id) => id !== productId);
+    setCart(newCart);
+    localStorage.setItem('cart', JSON.stringify(newCart));
+  };
+
+  const filteredBySearch = products.filter((product) =>
+    product.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredByCategory =
+    selectedCategory === 'all'
+      ? filteredBySearch
+      : filteredBySearch.filter(
+        (product) => product.category === selectedCategory
+      );
+
+  const filteredByRating =
+    filteredByCategory.filter(
+      (product) => product.rating >= minRating
+    ) || [];
+
+  const sortedProducts = [...filteredByRating].sort((a, b) => {
+    if (sortOrder === 'asc') return a.price - b.price;
+    return b.price - a.price;
+  });
+
+  if (isLoading && !products.length) {
+    return <Loader size="large" />;
+  }
+
+  if (isError) return <div>Error loading products</div>;
+
   return (
-    <main
-      className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
-    >
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/pages/index.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
+    <div style={{ width: '80vw', margin: '0 auto' }}>
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <div style={{ textAlign: 'center', margin: '20px 0' }}>
+          <Space size="middle" wrap>
+            <Input
+              placeholder="Search products"
+              onChange={(e) => setSearchTerm(e.target.value)}
+              allowClear
             />
-          </a>
+
+            <Select
+              defaultValue="all"
+              onChange={(value) => {
+                setSelectedCategory(value);
+                setSkip(0)
+              }}
+              loading={isLoadingCategories}
+            >
+              <Option value="all">All Categories</Option>
+              {isLoadingCategories ? (
+                <Option value="loading">Loading Categories...</Option>
+              ) : (
+                categories?.map((category: ICategory, id: number) => (
+                  <Option key={id} value={category}>
+                    {category as unknown as string}
+                  </Option>
+                ))
+              )}
+            </Select>
+
+            <Select defaultValue={0} onChange={(value) => setMinRating(value)}>
+              <Option value={0}>All Ratings</Option>
+              <Option value={4}>4 Stars & Up</Option>
+              <Option value={3}>3 Stars & Up</Option>
+              <Option value={2}>2 Stars & Up</Option>
+              <Option value={1}>1 Star & Up</Option>
+            </Select>
+
+            <Select defaultValue="asc" onChange={(value) => setSortOrder(value)}>
+              <Option value="asc">Price: Low to High</Option>
+              <Option value="desc">Price: High to Low</Option>
+            </Select>
+          </Space>
         </div>
-      </div>
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700/10 after:dark:from-sky-900 after:dark:via-[#0141ff]/40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+        <Row gutter={[16, 16]}>
+          {sortedProducts.length > 0 ? (
+            sortedProducts.map((product) => (
+              <Col key={product.id} xs={24} sm={12} md={8} lg={6}>
+                <ProductCard
+                  title={product.title}
+                  price={product.price}
+                  imageUrl={product.images[0]}
+                  onAddToCart={() => handleAddToCart(product.id)}
+                  onRemoveFromCart={() => handleRemoveFromCart(product.id)}
+                  isInCart={cart.includes(product.id)}
+                />
+              </Col>
+            ))
+          ) : (
+            <Col span={24}>
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <Empty
+                  description={<span>No products found</span>}
+                />
+              </div>
+            </Col>
+          )}
+        </Row>
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+        {data && products.length < data.total && (
+          <div style={{ textAlign: 'center', margin: '20px 0' }}>
+            <Button
+              htmlType="button"
+              onClick={handleLoadMore}
+              type="primary"
+              disabled={isFetching}
+            >
+              {isFetching ? 'Loading More...' : 'Load More'}
+            </Button>
+          </div>
+        )}
+      </Space>
+    </div>
+  );
+};
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Discover and deploy boilerplate example Next.js&nbsp;projects.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
-}
+export default ProductList;

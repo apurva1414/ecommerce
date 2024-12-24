@@ -1,0 +1,30 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #fff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.logo {
+  .logoText {
+    text-decoration: none;
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    cursor: pointer;
+  }
+}
+
+.cart {
+  .ant-btn {
+    background-color: transparent;
+    border: none;
+    color: #333;
+  }
+
+  .ant-badge-count {
+    background-color: #ff4d4f;
+  }
+}
