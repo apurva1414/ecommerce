@@ -17,7 +17,14 @@
   }
 }
 
-.cart {
+.menuItemsBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.menuItems {
   .ant-btn {
     background-color: transparent;
     border: none;

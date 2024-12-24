@@ -115,7 +115,7 @@ const CartPage: React.FC = () => {
 
     return (
         <div style={{ width: '80vw', margin: '0 auto', padding: '20px' }}>
-            <h2>Shopping Cart</h2>
+            <h2 style={{ marginBottom: '20px' }}>Shopping Cart</h2>
             <Table
                 columns={columns}
                 dataSource={products.map((item) => ({
